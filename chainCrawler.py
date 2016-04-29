@@ -154,9 +154,13 @@ class ChainCrawler(object):
             #now filter out links we don't want and push the rest
             elif not any(substring in key.lower() for substring in \
                     ['edit','create','self','curies','websocket']):
-               item['type']=key
-               item['from_item_list'] = False
-               crawl_links.append(item)
+                if item is not None:
+                    item['type']=key
+                    item['from_item_list'] = False
+                    crawl_links.append(item)
+                else:
+                    log.warn(' EXTRACT_LINK: nonetype link detected in' + \
+                            ' resource %s', key)
 
         return crawl_links
 
@@ -172,6 +176,10 @@ class ChainCrawler(object):
         #before returning, delete any list items that are in our crawl history
         crawl_links = [x for x in crawl_links if x not in (y['href'] for y in self.crawl_history.asList())]
 
+        #for our final list, check to see which links are in cache
+        for link in crawl_links:
+            link['in_cache'] = self.cache.check(link['href'])
+
         return crawl_links
 
 
@@ -184,6 +192,7 @@ class ChainCrawler(object):
             resource_title=None, resource_links=None):
 
         loop_count=0
+
         #keep calling crawl_node, unless it returns false, with a pause between
         while(self.crawl_node(namespace,resource_type, plural_resource_type,\
                 resource_title, resource_links)):
@@ -198,8 +207,8 @@ class ChainCrawler(object):
         log.info( "--- crawling ended, %s pages crawled ---", loop_count )
 
 
-    def crawl_node(self, namespace="", resource_type=None, special_pluralization=None,\
-            resource_title=None, resource_links=None):
+    def crawl_node(self, namespace="", resource_type=None, \
+            pluralization=None, resource_title=None, resource_link_types=None):
         '''
         crawl through chain, pushing uri/resource that match the passed criteria
         onto the queue.  If nothing is passed, push all resources.
@@ -222,6 +231,13 @@ class ChainCrawler(object):
         I.E. a device linked to a site, as opposed to a device linked to a
         deployment.
         '''
+
+        #put uri in cache now that we're crawling it, make a note of collisions
+        if self.cache.put_and_collision(self.current_uri):
+            log.info( 'HASH COLLISION: value overwritten in hash table.' )
+
+        #debug: print state of cache after updating
+        log.debug('CACHE STATE: %s', self.cache._cache)
 
         #download the current resource
         try:
@@ -256,24 +272,28 @@ class ChainCrawler(object):
 
         #end downloading resource
 
-        #put uri in cache now that we've accessed it, make a note of collisions
-        if self.cache.put_and_collision(self.current_uri):
-            log.info( 'HASH COLLISION: value overwritten in hash table.' )
-
-        log.debug('CACHE STATE: %s', self.cache._cache)
-
         #put request in JSON form, apply CURIES, get links
         resource_json = req.json()
-        req_links = self.apply_hal_curies(resource_json)['_links']
-        log.debug('HAL/JSON LINKS: %s', req_links)
+        log.debug('HAL/JSON RAW RESOURCE: %s', resource_json)
 
-        #push potential crawl links into a list
+        req_links = self.apply_hal_curies(resource_json)['_links']
         crawl_links = self.get_external_links(req_links)
 
-        log.debug('HAL/JSON LINKS FILTERED (for history, self, create/edit, ws, itemlist flattend): %s', crawl_links)
+        log.debug('HAL/JSON LINKS CURIES APPLIED, FILTERED (for history,' + \
+                'self, create/edit, ws, itemlist flattened): %s', crawl_links)
+
+        #queue up uris/resources that match search criteria!
+        #(1) if resource name exists, filter items to  get only items that
+        #match the singular resource name, AND (things that match the plural
+        #resource name && are from_item_list)
+        for link_item in crawl_links:
+
+        #(2) if title exists, filter items remaining for those that match the title
+        #(3) if links exist, filter items remaining for those that have matching links
 
         #search for case-insensitive singular, and plural +'s' +'es', add field to give plural name
         #if items, iterate through, use 'type' of previous step w/title
+
 
         #push all matching items out to queue
 
@@ -298,5 +318,7 @@ class ChainCrawler(object):
 '''
 
 if __name__=="__main__":
-    crawler = ChainCrawler()
+    crawler = ChainCrawler('http://learnair.media.mit.edu:8000/devices/10')
+    #crawler = ChainCrawler('http://learnair.media.mit.edu:8000/devices/?site_id=1')
+    #crawler = ChainCrawler()
     crawler.crawl()
