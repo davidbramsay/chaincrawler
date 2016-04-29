@@ -2,10 +2,12 @@ from datetime import datetime
 import time
 
 
-class timeDecaySet(object):
+class TimeDecaySet(object):
     #a simple set that you initiate with a minutes value,
     #that will only keep values that are younger than X minutes old.
     #after X minutes, they will be removed from the set.
+
+    #set minute_decay = 0 for infinite persistence
 
     def __init__(self, minute_decay=1):
         self._minute_decay = minute_decay
@@ -21,6 +23,7 @@ class timeDecaySet(object):
             self._list.append({'val':value, \
                     'timestamp':time.mktime(datetime.now().timetuple())})
             return True
+
 
     def in_set(self, value):
         self.remove_timed_out_values()
@@ -45,7 +48,8 @@ class timeDecaySet(object):
         while (index<len(self._list) and ((now - self._list[index]['timestamp'])/60 > self._minute_decay)):
             index = index + 1
 
-        if index>0:
+        #only remove values if our minute_decay value has been set to a positive value
+        if (self._minute_decay > 0):
             self._list = self._list[index:]
 
 

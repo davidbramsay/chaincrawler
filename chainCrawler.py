@@ -41,11 +41,13 @@ expose queue of resources/links to matching rel namespace and resource type
 -delay between access
 
 '''
-from leakyLIFO import LeakyLIFO
 from crawlerCache import CrawlerCache
+from leakyLIFO import LeakyLIFO
+from timeDecaySet import TimeDecaySet
 from globalConfig import log
 import re
 import time
+import random
 import requests
 import Queue
 
@@ -54,7 +56,15 @@ class ChainCrawler(object):
 
 
     def __init__(self, entry_point='http://learnair.media.mit.edu:8000/', \
-            cache_table_mask_length=8, track_search_depth=5, crawl_delay=1000):
+            cache_table_mask_length=8, track_search_depth=5, \
+            found_set_persistence=720, crawl_delay=1000):
+        #entry_point = starting URL for crawl
+        #search_depth = how many steps in path we save to retrace when at a dead end
+        #found_set_persistence = how long, in min,  to keep a resource URI in memory
+        #       before it is allowed to be returned as a new resource again.  720= 12
+        #       hours before crawler 'forgets' it has seen something and resubmits it
+        #       in the queue to be processed
+        #crawl_delay = how long, in ms, before accessing/crawling a new resource
 
         self.entry_point = entry_point #entry point URI
 
@@ -63,6 +73,7 @@ class ChainCrawler(object):
         self.current_uri_type = 'entry_point'
         self.crawl_history = LeakyLIFO(track_search_depth) #keep track of past
         self.crawl_delay = crawl_delay #in milliseconds
+        self.found_resources = TimeDecaySet(found_set_persistence) #in seconds
 
         #initialize cache
         self.cache = CrawlerCache(cache_table_mask_length)
@@ -118,8 +129,8 @@ class ChainCrawler(object):
     def pluralize_resource_name(resource_name, namespace=""):
         return [namespace + resource_name + 's', namespace + resource_name + 'es']
 
-    @staticmethod
-    def get_external_link_array(req_links):
+
+    def flatten_filter_link_array(self, req_links):
         ''' takes a JSON array (after CURIES have been applied, if desired)
         and handles HAL 'items' collections and other links, by flattening
         them into a list.  each list element has list[0][fields] fields='href'
@@ -144,7 +155,7 @@ class ChainCrawler(object):
                 for items_item in item:
                     #inherit 'type' from previous crawl step
                     try:
-                        items_item['type'] = self.crawl_history.asList[-1]['type']
+                        items_item['type'] = self.current_uri_type
                     except:
                         log.error('Cannot inherit type information of list from previous crawl')
                         items_item['type'] = 'UNKNOWN'
@@ -165,50 +176,94 @@ class ChainCrawler(object):
         return crawl_links
 
 
-    def get_external_links(self, json):
+    def get_external_links(self, req_links):
 
         #call 'real' function, which (1) flattens 'items', (2) filters out
         #create/edit forms, websockets, curies, and self, and (3) formats
         #things nicely for us in an array:
-        crawl_links = self.get_external_link_array(json)
+        crawl_links = self.flatten_filter_link_array(req_links)
 
         #we now have a well-structured list of links with known types
         #before returning, delete any list items that are in our crawl history
         crawl_links = [x for x in crawl_links if x not in (y['href'] for y in self.crawl_history.asList())]
 
-        #for our final list, check to see which links are in cache
+        #for our final list, append info on whether links are in cache
         for link in crawl_links:
             link['in_cache'] = self.cache.check(link['href'])
 
         return crawl_links
 
 
-#crawl() -> push queue of each uri/resource crawled
-#crawl(namespace, resource_type, plural_resource_type, resource_title, resource_links)
-#        -> push queue of each uri/resource matching all criteria
+
+    def query_link_array(self, crawl_links):
+        '''takes a crawl_link array (which has links and types of objects)
+        and decides which of these links were quieried for. Return List of
+        URIs that are matched resources not in the set already discovered'''
+
+        if self.qry_resource_type is not None:
+            log.debug('SEARCH_LIST: looking for singular: %s', self.qry_resource_type)
+            log.debug('SEARCH_LIST: looking for plural as item_list: %s', self.qry_resource_plural)
+        if self.qry_resource_title is not None:
+            log.debug('SEARCH_LIST: looking for title: %s', self.qry_resource_title)
+
+        matching_uris = []
+
+        #(1) if resource name exists, filter items to get only items that
+        #match the singular resource name, AND (things that match the plural
+        #resource name && are from_item_list)
+        #(2) if title exists, filter items remaining for those that match the title
+
+        for link_item in crawl_links:
+
+            log.debug('SEARCH_LIST: checking if %s matches query criteria', link_item['href'])
+            this_link_item_matches = True
+
+            #see if it matches resource_type, if queried for
+            if self.qry_resource_type is not None:
+                if ((any(link_item['type'].lower() in x for x in self.qry_resource_plural) and link_item['from_item_list']) \
+                        or (link_item['type'].lower() == self.qry_resource_type)):
+                    #it does!
+                    log.debug('SEARCH_LIST: matched search_type %s', link_item['type'])
+                else:
+                    #it doesn't, but we're searching on resource_type
+                    this_link_item_matches = False
+
+            #see if it matches resource_title, if queried for
+            if self.qry_resource_title is not None:
+                if (link_item['title'].lower() == self.qry_resource_title):
+                    #it does!
+                    log.debug('SEARCH_LIST: matched search_title $s', link_item['title'])
+                else:
+                    #it doesn't, but we're searching on resource_title
+                    this_link_item_matches = False
+
+            #if we made it to here and this_link_item_matches, it's a match!
+            if this_link_item_matches:
+                matching_uris.append(link_item['href'])
+
+        #return list of matching uris
+        return matching_uris
 
 
-    def crawl(self, namespace="", resource_type=None, plural_resource_type=None,\
-            resource_title=None, resource_links=None):
+    def push_uris_to_queue(self, uris):
+        '''check uris against found_resources set, and if they're not there,
+        get resource and push URI and resource out to queue'''
+        #self.found_resources
+        for uri in uris:
+            #if 'add' returns true, it's not in our set yet
+            if self.found_resources.add(uri):
 
-        loop_count=0
+                log.debug('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
+                log.info('New Resource Found!  %s about to be pushed to queue', uri)
+                log.debug('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
 
-        #keep calling crawl_node, unless it returns false, with a pause between
-        while(self.crawl_node(namespace,resource_type, plural_resource_type,\
-                resource_title, resource_links)):
+                #get resource associated with uri
 
-            #delay for crawl_delay ms between calls
-            time.sleep(self.crawl_delay/1000.0)
-
-            #count loop iterations
-            loop_count = loop_count + 1
-            log.debug( "MAIN CRAWL LOOP ITERATION %s -----------------", loop_count )
-
-        log.info( "--- crawling ended, %s pages crawled ---", loop_count )
+                #push uri and resource to queue!
 
 
-    def crawl_node(self, namespace="", resource_type=None, \
-            pluralization=None, resource_title=None, resource_link_types=None):
+    def crawl(self, namespace="", resource_type=None, \
+            plural_resource_type=None, resource_title=None):
         '''
         crawl through chain, pushing uri/resource that match the passed criteria
         onto the queue.  If nothing is passed, push all resources.
@@ -223,14 +278,54 @@ class ChainCrawler(object):
         singular resource of interest.
 
         if looking for a specific resource, this will cross check against the
-        title of the resource.
-
-        if you're not interested in defining the resource type, but only want
-        resources that link to certain things, the resource_links field will
-        allow you to specify what resources you want to have valid links to.
-        I.E. a device linked to a site, as opposed to a device linked to a
-        deployment.
+        title of the resource.  Selection will be ANDED with other query
+        criteria.
         '''
+
+        #store search criteria in lowercase form, with namespace appended
+        #add plural forms +'s', +'es' to list of plural cases to look for
+
+        if resource_type is not None:
+            #append namespace
+            self.qry_resource_type = namespace + resource_type
+            #make all lowercase
+            self.qry_resource_type = self.qry_resource_type.lower()
+            #'pluralize' resource after adding namespace
+            self.qry_resource_plural = self.pluralize_resource_name(self.qry_resource_type)
+            #add special pluralization if given by user
+            if plural_resource_type is not None:
+                self.qry_resource_plural.append(namespace + plural_resource_type)
+            #make all plural list items lowercase
+            self.qry_resource_plural = [x.lower() for x in self.qry_resource_plural]
+        else:
+            #not searching on resource_type, just define qry_resource_type as None
+            self.qry_resource_type = None
+
+        if resource_title is not None:
+            #make all lowercase
+            self.qry_resource_title = resource_title.lower()
+        else:
+            #not searching on title, just define qry_resource_title as None
+            self.qry_resource_title = None
+
+        #end initializing query variables
+
+        loop_count=0
+
+        #keep calling crawl_node, unless it returns false, with a pause between
+        while(self.crawl_node()):
+
+            #delay for crawl_delay ms between calls
+            time.sleep(self.crawl_delay/1000.0)
+
+            #count loop iterations
+            loop_count = loop_count + 1
+            log.info( "MAIN CRAWL LOOP ITERATION %s -----------------", loop_count )
+
+        log.info( "--- crawling ended, %s pages crawled ---", loop_count )
+
+
+    def crawl_node(self):
 
         #put uri in cache now that we're crawling it, make a note of collisions
         if self.cache.put_and_collision(self.current_uri):
@@ -279,43 +374,67 @@ class ChainCrawler(object):
         req_links = self.apply_hal_curies(resource_json)['_links']
         crawl_links = self.get_external_links(req_links)
 
+        #crawl_links is a 'flat' list list[:][fields]
+        #fields are href, type, title, in_cache, from_item_list
+
         log.debug('HAL/JSON LINKS CURIES APPLIED, FILTERED (for history,' + \
                 'self, create/edit, ws, itemlist flattened): %s', crawl_links)
 
-        #queue up uris/resources that match search criteria!
-        #(1) if resource name exists, filter items to  get only items that
-        #match the singular resource name, AND (things that match the plural
-        #resource name && are from_item_list)
-        for link_item in crawl_links:
+        #find the uris/resources that match search criteria!
+        matching_uris = self.query_link_array(crawl_links)
+        #... and send them out!!
+        self.push_uris_to_queue(matching_uris)
 
-        #(2) if title exists, filter items remaining for those that match the title
-        #(3) if links exist, filter items remaining for those that have matching links
+        #select next link!!!!
 
-        #search for case-insensitive singular, and plural +'s' +'es', add field to give plural name
-        #if items, iterate through, use 'type' of previous step w/title
+        #get uncached links
+        uncached_links = [x for x in crawl_links if not x['in_cache']]
 
+        if (len(uncached_links)>0):
+            #we have uncached link(s) to follow! randomly pick one.
+            random_index = random.randrange(0,len(uncached_links))
 
-        #push all matching items out to queue
+            self.crawl_history.push({'href':self.current_uri, 'type':self.current_uri_type})
+            self.current_uri = uncached_links[random_index]['href']
+            self.current_uri_type = uncached_links[random_index]['type']
 
-        #select next link
+        else:
+            #we don't have any uncached options from this node. Damn.
 
-        #push into history
-        self.crawl_history.push({'href':self.current_uri, 'type':self.current_uri_type})
+            #special case of being at the entry point
+            if (self.current_uri_type == 'entry_point'):
+                #double check we have something to crawl
+                if (len(crawl_links) > 0):
+                    self.cache.clear() # clear cache
 
-        #update current_uri and current_uri_type
+                    #randomly select node from crawl_links
+                    random_index = random.randrange(0,len(crawl_links))
+
+                    self.crawl_history.push({'href':self.current_uri, 'type':self.current_uri_type})
+                    self.current_uri = crawl_links[random_index]['href']
+                    self.current_uri_type = crawl_links[random_index]['type']
+
+                else:
+                    log.error('CRAWL: NO CRAWLABLE LINKS DETECTED AT ENTRY_POINT!!!!')
+                    return False
+
+            #not at entry point, time to try and move back up in history
+            elif ( self.crawl_history.size > 0 ):
+                prev = self.crawl_history.pop()
+                self.current_uri = prev['href']
+                self.current_uri_type = prev['type']
+
+            else: #no history left, not at entry point- jump to entry point
+                self.current_uri= self.entry_point
+                self.current_uri_type = 'entry_point'
+
+        log.debug('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
+        log.info('>>>crawling to %s, type %s', self.current_uri, self.current_uri_type)
+        log.debug('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
 
         #recurse
         return True
-'''
--get links to eternal resources, eliminate any in depth memory (where you came from)
--compare against search criteria, push matching to external queue
--randomly select one resource link if any exist, compare against hashes, if not hashed follow
--if hashed, select from remaining links and compare, if not hashed follow. repeat until all exhausted
--if all hashed from current resource, move back up depth memory one resource and repeat
--if we exhaust full depth history and all are hashed, go back to entrypoint and start over
--if we are at the entrypoint and try to go back, clear hash table
--delay between access
-'''
+
 
 if __name__=="__main__":
     crawler = ChainCrawler('http://learnair.media.mit.edu:8000/devices/10')
