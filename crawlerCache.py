@@ -1,5 +1,6 @@
 from cityhash import CityHash64
 import array
+from leakyLIFO import LeakyLIFO
 from globalConfig import log
 import sys
 
@@ -116,4 +117,55 @@ class CrawlerCache(object):
         now we use Google's fast crawler hash function CityHash, the 64 bit
         version.  Returns a 64 bit hash based on an input (uri) string.'''
         return CityHash64(uri_string)
+
+
+
+
+class CrawlerCacheWithCollisionHistory(CrawlerCache):
+    '''add a history of collisions using a leakyLIFO of length collision_history'''
+
+
+    def __init__(self, mask_length=8, collision_history=10):
+        self._collision_history = LeakyLIFO(collision_history)
+        super(CrawlerCacheWithCollisionHistory, self).__init__(mask_length)
+
+
+    def put_and_collision(self, uri_string):
+        '''adds a value to the cache.  If it is overwriting a different value,
+        it returns 'True' to indicate a collision and updates collision history.
+        Otherwise returns False.'''
+
+        hashed_uri = self.hash_uri(uri_string)
+        index = hashed_uri & self._cache_mask
+
+        if (self._cache[index] and self._cache[index] != hashed_uri):
+            self._collision_history.push(self._cache[index])
+            self._cache[index] = hashed_uri
+            return True
+        else:
+            self._cache[index] = hashed_uri
+            return False
+
+
+    def check(self, uri_string):
+        '''returns True if value found in cache, False if not found.'''
+
+        hashed_uri = self.hash_uri(uri_string)
+
+        if (hashed_uri in self._collision_history.asList()):
+            return True
+        else:
+            return super(CrawlerCacheWithCollisionHistory, self).check(uri_string)
+
+
+    def clear(self):
+        '''clear cache values back to initialized '0' in each location'''
+        while (self._collision_history.size()):
+            self._collision_history.pop()
+
+        super(CrawlerCacheWithCollisionHistory, self).clear()
+
+
+    def collision_history_as_list(self):
+        return self._collision_history.asList()
 
