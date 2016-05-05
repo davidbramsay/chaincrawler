@@ -41,6 +41,7 @@ expose queue of resources/links to matching rel namespace and resource type
 -delay between access
 
 '''
+
 from crawlerCache import CrawlerCacheWithCollisionHistory
 from leakyLIFO import LeakyLIFO
 from timeDecaySet import TimeDecaySet
@@ -49,7 +50,9 @@ import re
 import time
 import random
 import requests
+import threading
 import Queue
+import zmq
 
 
 class ChainCrawler(object):
@@ -77,6 +80,10 @@ class ChainCrawler(object):
 
         #initialize cache
         self.cache = CrawlerCacheWithCollisionHistory(cache_table_mask_length)
+
+        #initialize queue/zmq variables
+        self.q = None
+        self.zmq = None
 
         #initialize filter word list for crawling
         self.filter_keywords = ['edit','create','self','curies','websocket']
@@ -199,7 +206,6 @@ class ChainCrawler(object):
         return crawl_links
 
 
-
     def query_link_array(self, crawl_links):
         '''takes a crawl_link array (which has links and types of objects)
         and decides which of these links were quieried for. Return List of
@@ -264,10 +270,52 @@ class ChainCrawler(object):
                 log.info('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
                 log.info('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
 
-                #get resource associated with uri
-
                 #push uri and resource to queue!
+                if isinstance(self.q, Queue.Queue):
+                    log.info('QUEUE: Pushing to queue')
+                    self.q.put(uri)
+                elif self.zmq is not None:
+                    log.info('QUEUE: Pusing to ZMQ socket')
+                    self.zmq.send_string(uri)
+                else:
+                    log.warn('QUEUE: Queue and ZMQ Socket undefined')
 
+
+    def crawl_thread(self, q=None, namespace="", resource_type=None, \
+            plural_resource_type=None, resource_title=None):
+        '''
+        q is a link to the queue you'd like URIs of found resources pushed to.
+        '''
+        if q is not None:
+            self.q = q
+
+        kwargs = {}
+        kwargs['namespace'] = namespace
+
+        if resource_type is not None:
+            kwargs['resource_type'] = resource_type
+        if plural_resource_type is not None:
+            kwargs['plural_resource_type'] = plural_resource_type
+        if resource_title is not None:
+            kwargs['resource_title'] = resource_title
+
+        self.thread = threading.Thread(target=self.crawl, kwargs=kwargs)
+
+        self.thread.daemon = True
+        self.thread.setDaemon(True)
+        self.thread.start()
+
+
+    def crawl_zmq(self, socket="tcp://127.0.0.1:5557", namespace="", resource_type=None, \
+            plural_resource_type=None, resource_title=None):
+        '''
+        socket is a link to the queue you'd like URIs of found resources pushed to.
+        '''
+        context = zmq.Context()
+        self.zmq = context.socket(zmq.PUSH)
+        self.zmq.bind(socket)
+
+        self.crawl(namespace,resource_type,plural_resource_type,resource_title)
 
     def crawl(self, namespace="", resource_type=None, \
             plural_resource_type=None, resource_title=None):
@@ -452,16 +500,51 @@ class ChainCrawler(object):
 
 if __name__=="__main__":
 
+
+    #######JUST CRAWL EXAMPLES######
+
     #crawler = ChainCrawler('http://learnair.media.mit.edu:8000/devices/10')
     #crawler = ChainCrawler('http://learnair.media.mit.edu:8000/devices/?site_id=1')
-    crawler = ChainCrawler(found_set_persistence=2, crawl_delay=500)
+    #crawler = ChainCrawler(found_set_persistence=2, crawl_delay=500)
     #crawler = ChainCrawler()
+
 
     #crawler.crawl(namespace='http://learnair.media.mit.edu:8000/rels/', \
     #        resource_type='site')
     #crawler.crawl(namespace='http://learnair.media.mit.edu:8000/rels/', \
     #        resource_title='a')
-    crawler.crawl(namespace='http://learnair.media.mit.edu:8000/rels/', \
-            resource_type='Device', \
-            resource_title='test004')
+    #crawler.crawl(namespace='http://learnair.media.mit.edu:8000/rels/', \
+    #        resource_type='Device', \
+    #        resource_title='test004')
     #crawler.crawl()
+
+
+    #######THREADING QUEUE EXAMPLES######
+
+    testQueue = Queue.Queue()
+    crawler = ChainCrawler(found_set_persistence=2, crawl_delay=500)
+
+    #crawler.crawl_thread(namespace='http://learnair.media.mit.edu:8000/rels/', \
+    #        resource_type='site')
+    crawler.crawl_thread(q=testQueue, namespace='http://learnair.media.mit.edu:8000/rels/', \
+            resource_title='a')
+    #crawler.crawl_thread(namespace='http://learnair.media.mit.edu:8000/rels/', \
+    #        resource_type='Device', \
+    #        resource_title='test004')
+    #crawler.crawl_thread()
+
+    #CAUTION: this main loop doesn't end
+    #while True:
+    #        uri = testQueue.get()
+    #        print uri
+
+
+    #######THREADING QUEUE EXAMPLES######
+
+    testQueue = Queue.Queue()
+    crawler = ChainCrawler(found_set_persistence=2, crawl_delay=500)
+    crawler.crawl_zmq(namespace='http://learnair.media.mit.edu:8000/rels/', \
+            resource_title='a')
+
+
+
