@@ -317,6 +317,7 @@ class ChainCrawler(object):
 
         self.crawl(namespace,resource_type,plural_resource_type,resource_title)
 
+
     def crawl(self, namespace="", resource_type=None, \
             plural_resource_type=None, resource_title=None):
         '''
@@ -521,13 +522,13 @@ if __name__=="__main__":
 
     #######THREADING QUEUE EXAMPLES######
 
-    testQueue = Queue.Queue()
-    crawler = ChainCrawler(found_set_persistence=2, crawl_delay=500)
+    #testQueue = Queue.Queue()
+    #crawler = ChainCrawler(found_set_persistence=2, crawl_delay=500)
 
     #crawler.crawl_thread(namespace='http://learnair.media.mit.edu:8000/rels/', \
     #        resource_type='site')
-    crawler.crawl_thread(q=testQueue, namespace='http://learnair.media.mit.edu:8000/rels/', \
-            resource_title='a')
+    #crawler.crawl_thread(q=testQueue, namespace='http://learnair.media.mit.edu:8000/rels/', \
+    #        resource_title='a')
     #crawler.crawl_thread(namespace='http://learnair.media.mit.edu:8000/rels/', \
     #        resource_type='Device', \
     #        resource_title='test004')
@@ -538,11 +539,14 @@ if __name__=="__main__":
     #        uri = testQueue.get()
     #        print uri
 
+    #test Daemon exists on main thread exit
+    #time.sleep(5)
 
-    #######THREADING QUEUE EXAMPLES######
 
-    testQueue = Queue.Queue()
+    #######ZMQ EXAMPLES######
+
     crawler = ChainCrawler(found_set_persistence=2, crawl_delay=500)
+
     crawler.crawl_zmq(namespace='http://learnair.media.mit.edu:8000/rels/', \
             resource_title='a')
 
