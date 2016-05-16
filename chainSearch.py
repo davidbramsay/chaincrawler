@@ -432,6 +432,8 @@ class ChainSearch(object):
             plural_resource_type=plural_resource_type).asList()
 
         self.filter_keywords.append('create')
+        self.createform_type = None
+
 
         return found_link
 
