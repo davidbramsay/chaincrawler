@@ -289,6 +289,10 @@ class ChainSearch(object):
 
         #end initializing query variables
 
+        #initialize crawl variables
+        self.current_uri = self.entry_point #keep track of current location
+        self.current_uri_type = 'entry_point'
+
         self.bfs()
 
         return self.found_resources
