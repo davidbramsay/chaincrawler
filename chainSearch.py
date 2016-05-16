@@ -391,6 +391,7 @@ class ChainSearch(object):
         returns the list after examining all links 'degrees' away'''
 
         self.degrees = degrees
+        self.return_if_found = False
 
         return self.search(namespace=namespace, resource_type=resource_type, \
             plural_resource_type=plural_resource_type, resource_title=resource_title).asList()
@@ -416,6 +417,7 @@ class ChainSearch(object):
 
         self.filter_keywords = [x for x in self.filter_keywords if x != 'create']
         self.degrees = degrees
+        self.return_if_found = False
 
         print self.filter_keywords
 
@@ -433,6 +435,8 @@ class ChainSearch(object):
 
         self.filter_keywords.append('create')
         self.createform_type = None
+        self.qry_resource_type = None
+        self.qry_resource_plural = None
 
 
         return found_link
