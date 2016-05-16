@@ -65,7 +65,7 @@ class ChainSearch(object):
 
     def reinit(self):
 
-        self.current_uri = entry_point #keep track of current location
+        self.current_uri = self.entry_point #keep track of current location
         self.current_uri_type = 'entry_point'
         self.degrees = 0
         self.return_if_found = False
@@ -426,7 +426,6 @@ class ChainSearch(object):
 
         self.filter_keywords = [x for x in self.filter_keywords if x != 'create']
         self.degrees = degrees
-        self.return_if_found = False
 
         print self.filter_keywords
 
