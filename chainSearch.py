@@ -100,7 +100,7 @@ class ChainSearch(object):
 
         except:
             log.warn( "CURIES: No CURIES found" )
-            json['_links']=[]
+            json['_links']={}
 
         return json
 
