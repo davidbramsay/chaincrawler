@@ -517,7 +517,7 @@ class ChainCrawler(object):
 
         self.find_called = True
 
-        uris= crawl(namespace=namespace, resource_type=resource_type, \
+        uris= self.crawl(namespace=namespace, resource_type=resource_type, \
             plural_resource_type=plural_resource_type, resource_title=resource_title)
 
         if len(uris) >= 1:
