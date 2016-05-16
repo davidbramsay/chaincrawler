@@ -63,6 +63,16 @@ class ChainSearch(object):
         log.info( "-----------------------------------------------" )
 
 
+    def reinit(self):
+
+        self.current_uri = entry_point #keep track of current location
+        self.current_uri_type = 'entry_point'
+        self.degrees = 0
+        self.return_if_found = False
+        self.createform_type = None
+        self.found_resources = TimeDecaySet(0)
+
+
     @staticmethod
     def apply_hal_curies(json, del_curies=True):
         '''Find and apply CURIES relationship shorcuts (namespace/rel
@@ -389,9 +399,8 @@ class ChainSearch(object):
             plural_resource_type=None, resource_title=None, degrees=1):
         '''only looks at 'degrees' degree away for the resources exhaustively,
         returns the list after examining all links 'degrees' away'''
-
+        self.reinit()
         self.degrees = degrees
-        self.return_if_found = False
 
         return self.search(namespace=namespace, resource_type=resource_type, \
             plural_resource_type=plural_resource_type, resource_title=resource_title).asList()
@@ -402,7 +411,7 @@ class ChainSearch(object):
         '''breadth first search, returning first matching resource.  Max_degrees
         specifies the max degrees of seperation it will exhaustively search
         before giving up and returning an empty list if none are found'''
-
+        self.reinit()
         self.degrees = max_degrees
         self.return_if_found = True
 
@@ -434,10 +443,6 @@ class ChainSearch(object):
             plural_resource_type=plural_resource_type).asList()
 
         self.filter_keywords.append('create')
-        self.createform_type = None
-        self.qry_resource_type = None
-        self.qry_resource_plural = None
-
 
         return found_link
 
