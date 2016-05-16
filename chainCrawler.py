@@ -85,6 +85,8 @@ class ChainCrawler(object):
         self.q = None
         self.zmq = None
 
+        self.find_called = False
+
         #initialize filter word list for crawling
         self.filter_keywords = ['edit','create','self','curies','websocket']
         [self.filter_keywords.append(x) for x in filter_keywords]
@@ -260,6 +262,9 @@ class ChainCrawler(object):
         '''check uris against found_resources set, and if they're not there,
         get resource and push URI and resource out to queue'''
         #self.found_resources
+
+        found_one = False
+
         for uri in uris:
             #if 'add' returns true, it's not in our set yet
             if self.found_resources.add(uri):
@@ -270,6 +275,8 @@ class ChainCrawler(object):
                 log.info('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
                 log.info('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
 
+                found_one = True
+
                 #push uri and resource to queue!
                 if isinstance(self.q, Queue.Queue):
                     log.info('QUEUE: Pushing to queue')
@@ -279,6 +286,8 @@ class ChainCrawler(object):
                     self.zmq.send_string(uri)
                 else:
                     log.warn('QUEUE: Queue and ZMQ Socket undefined')
+
+        return found_one
 
 
     def crawl_thread(self, q=None, namespace="", resource_type=None, \
@@ -380,6 +389,8 @@ class ChainCrawler(object):
 
         log.info( "--- crawling ended, %s pages crawled ---", loop_count )
 
+        return self.found_resources
+
 
     def crawl_node(self):
 
@@ -439,7 +450,8 @@ class ChainCrawler(object):
         #find the uris/resources that match search criteria!
         matching_uris = self.query_link_array(crawl_links)
         #... and send them out!!
-        self.push_uris_to_queue(matching_uris)
+        if (self.push_uris_to_queue(matching_uris) and self.find_called):
+            return False #end crawl if we found one and 'find' was called
 
         #select next link!!!!
 
@@ -497,6 +509,21 @@ class ChainCrawler(object):
 
         #recurse
         return True
+
+
+    def find(self, namespace="", resource_type=None, \
+            plural_resource_type=None, resource_title=None):
+        '''crawls, and when finds a match returns it immediately'''
+
+        self.find_called = True
+
+        uris= crawl(namespace=namespace, resource_type=resource_type, \
+            plural_resource_type=plural_resource_type, resource_title=resource_title):
+
+        if len(uris) >= 1:
+            return uris[0]
+        else:
+            return None
 
 
 if __name__=="__main__":

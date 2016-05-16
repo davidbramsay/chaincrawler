@@ -3,7 +3,7 @@ import logging
 
 
 #set log output to screen and level to DEBUG level
-logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
 #create one shared instance of logging
 log = logging.getLogger()
