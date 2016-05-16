@@ -520,8 +520,8 @@ class ChainCrawler(object):
         uris= self.crawl(namespace=namespace, resource_type=resource_type, \
             plural_resource_type=plural_resource_type, resource_title=resource_title)
 
-        if len(uris) >= 1:
-            return uris[0]
+        if uris.size() >= 1:
+            return uris.asList()[0]
         else:
             return None
 
@@ -572,10 +572,14 @@ if __name__=="__main__":
 
     #######ZMQ EXAMPLES######
 
+    #crawler = ChainCrawler(found_set_persistence=2, crawl_delay=500)
+
+    #crawler.crawl_zmq(namespace='http://learnair.media.mit.edu:8000/rels/', \
+    #        resource_title='a')
+
+    #######FIND EXAMPLE######
+
     crawler = ChainCrawler(found_set_persistence=2, crawl_delay=500)
-
-    crawler.crawl_zmq(namespace='http://learnair.media.mit.edu:8000/rels/', \
-            resource_title='a')
-
-
-
+    x=crawler.find(namespace='http://learnair.media.mit.edu:8000/rels/', \
+            resource_title="Test Deployment #2",resource_type='deployment')
+    print x
