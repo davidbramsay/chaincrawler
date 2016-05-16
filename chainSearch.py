@@ -428,8 +428,12 @@ class ChainSearch(object):
             [self.createform_type.append(x) for x in \
                     self.pluralize_resource_name(self.createform_type[0])]
 
-        return self.search(namespace=namespace, resource_type='createForm', \
+        found_link= self.search(namespace=namespace, resource_type='createForm', \
             plural_resource_type=plural_resource_type).asList()
+
+        self.filter_keywords.append('create')
+
+        return found_link
 
 
     def reset_entrypoint(self, new_entrypoint = 'http://learnair.media.mit.edu:8000/'):
