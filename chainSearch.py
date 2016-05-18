@@ -197,7 +197,7 @@ class ChainSearch(object):
 
                     #double check for createForms the parent is correct
                     if ('createform' == link_item['type'].lower() and self.createform_type is not None):
-                        if (self.current_uri_type not in self.createform_type):
+                        if (self.current_uri_type.lower() not in self.createform_type):
                             this_link_item_matches = False
                         else:
                             log.info('SEARCH_LIST: matched search_type %s', link_item['type'])
