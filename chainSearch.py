@@ -429,8 +429,6 @@ class ChainSearch(object):
         self.filter_keywords = [x for x in self.filter_keywords if x != 'create']
         self.degrees = degrees
 
-        print self.filter_keywords
-
         if resource_type is not None:
             #append namespace
             self.createform_type = namespace + resource_type
