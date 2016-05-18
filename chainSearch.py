@@ -411,6 +411,7 @@ class ChainSearch(object):
         '''breadth first search, returning first matching resource.  Max_degrees
         specifies the max degrees of seperation it will exhaustively search
         before giving up and returning an empty list if none are found'''
+
         self.reinit()
         self.degrees = max_degrees
         self.return_if_found = True
@@ -424,6 +425,7 @@ class ChainSearch(object):
         ''' look for a createform link of type resource_type, at most 'degrees'
         degrees away from the entrypoint, and return after exhaustive search'''
 
+        self.reinit()
         self.filter_keywords = [x for x in self.filter_keywords if x != 'create']
         self.degrees = degrees
 
