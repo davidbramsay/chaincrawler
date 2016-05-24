@@ -74,6 +74,7 @@ class ChainCrawler(object):
         #initialize crawl variables
         self.current_uri = entry_point #keep track of current location
         self.current_uri_type = 'entry_point'
+        self.current_uri_title = 'entry_point'
         self.crawl_history = LeakyLIFO(track_search_depth) #keep track of past
         self.crawl_delay = crawl_delay #in milliseconds
         self.found_resources = TimeDecaySet(found_set_persistence) #in seconds
@@ -258,6 +259,56 @@ class ChainCrawler(object):
         return matching_uris
 
 
+    def query_current_node(self, json):
+
+        matching_uris = []
+
+        if self.qry_resource_type is not None:
+            log.info('SEARCH_LIST: looking for singular: %s', self.qry_resource_type)
+        if self.qry_resource_title is not None:
+            log.info('SEARCH_LIST: looking for title: %s', self.qry_resource_title)
+        if self.qry_extra is not None:
+            log.info('SEARCH_LIST: looking for %s', self.qry_extra)
+
+        this_link_item_matches = True
+
+        if self.qry_resource_type is not None:
+            if (any(self.current_uri_type.lower() in x for x in self.qry_resource_plural) \
+                    or self.current_uri_type.lower() == self.qry_resource_type):
+                #it does!
+                log.info('SEARCH_LIST: matched search_type %s', self.current_uri_type)
+            else:
+                #it doesn't, but we're searching on resource_type
+                this_link_item_matches = False
+
+        #see if it matches resource_title, if queried for
+        if self.qry_resource_title is not None:
+            if (self.current_uri_title.lower() == self.qry_resource_title):
+                #it does!
+                log.info('SEARCH_LIST: matched search_title %s', self.current_uri_title)
+            else:
+                #it doesn't, but we're searching on resource_title
+                this_link_item_matches = False
+
+        if self.qry_extra is not None:
+            for key, val in self.qry_extra.iteritems():
+                try:
+                    actual_val = json[key]
+                    if actual_val == val:
+                        log.info('SEARCH_LIST: matched search_extra %s: %s', key, val)
+                    else:
+                        this_link_item_matches = False
+                except:
+                    this_link_item_matches = False
+
+        #if we made it to here and this_link_item_matches, it's a match!
+        if this_link_item_matches:
+            matching_uris.append(self.current_uri)
+
+        #return list of matching uris
+        return matching_uris
+
+
     def push_uris_to_queue(self, uris):
         '''check uris against found_resources set, and if they're not there,
         get resource and push URI and resource out to queue'''
@@ -291,7 +342,7 @@ class ChainCrawler(object):
 
 
     def crawl_thread(self, q=None, namespace="", resource_type=None, \
-            plural_resource_type=None, resource_title=None):
+            plural_resource_type=None, resource_title=None, resource_extra=None):
         '''
         q is a link to the queue you'd like URIs of found resources pushed to.
         '''
@@ -307,6 +358,8 @@ class ChainCrawler(object):
             kwargs['plural_resource_type'] = plural_resource_type
         if resource_title is not None:
             kwargs['resource_title'] = resource_title
+        if resource_extra is not None:
+            kwargs['resource_extra'] = resource_extra
 
         self.thread = threading.Thread(target=self.crawl, kwargs=kwargs)
 
@@ -316,7 +369,7 @@ class ChainCrawler(object):
 
 
     def crawl_zmq(self, socket="tcp://127.0.0.1:5557", namespace="", resource_type=None, \
-            plural_resource_type=None, resource_title=None):
+            plural_resource_type=None, resource_title=None, resource_extra=None):
         '''
         socket is a link to the queue you'd like URIs of found resources pushed to.
         '''
@@ -324,11 +377,11 @@ class ChainCrawler(object):
         self.zmq = context.socket(zmq.PUSH)
         self.zmq.bind(socket)
 
-        self.crawl(namespace,resource_type,plural_resource_type,resource_title)
+        self.crawl(namespace,resource_type,plural_resource_type,resource_title, resource_extra)
 
 
     def crawl(self, namespace="", resource_type=None, \
-            plural_resource_type=None, resource_title=None):
+            plural_resource_type=None, resource_title=None, resource_extra=None):
         '''
         crawl through chain, pushing uri/resource that match the passed criteria
         onto the queue.  If nothing is passed, push all resources.
@@ -372,6 +425,11 @@ class ChainCrawler(object):
         else:
             #not searching on title, just define qry_resource_title as None
             self.qry_resource_title = None
+
+        if resource_extra is not None:
+            self.qry_extra = resource_extra
+        else:
+            self.qry_extra = None
 
         #end initializing query variables
 
@@ -423,6 +481,7 @@ class ChainCrawler(object):
                 prev = self.crawl_history.pop()
                 self.current_uri = prev['href']
                 self.current_uri_type = prev['type']
+                self.current_uri_title = prev['title']
                 return True
 
             #if we don't have any history left, go back to the entry point
@@ -430,6 +489,7 @@ class ChainCrawler(object):
                 log.info( 'exhausted depth of search history, back to entry point' )
                 self.current_uri = self.entry_point
                 self.current_uri_type = "entry_point"
+                self.current_uri_title = "entry_point"
                 return True
 
         #end downloading resource
@@ -448,7 +508,13 @@ class ChainCrawler(object):
                 'self, create/edit, ws, itemlist flattened): %s', crawl_links)
 
         #find the uris/resources that match search criteria!
-        matching_uris = self.query_link_array(crawl_links)
+        if self.qry_extra is None:
+            #we don't need to actually download the link to see if it matches
+            matching_uris = self.query_link_array(crawl_links)
+        else:
+            #we only have enough information to tell if the current node matches
+            matching_uris = self.query_current_node(resource_json)
+
         #... and send them out!!
         if (self.push_uris_to_queue(matching_uris) and self.find_called):
             return False #end crawl if we found one and 'find' was called
@@ -464,9 +530,10 @@ class ChainCrawler(object):
             #we have uncached link(s) to follow! randomly pick one.
             random_index = random.randrange(0,len(uncached_links))
 
-            self.crawl_history.push({'href':self.current_uri, 'type':self.current_uri_type})
+            self.crawl_history.push({'href':self.current_uri, 'type':self.current_uri_type, 'title':self.current_uri_title})
             self.current_uri = uncached_links[random_index]['href']
             self.current_uri_type = uncached_links[random_index]['type']
+            self.current_uri_title = uncached_links[random_index]['title']
 
         else:
             #we don't have any uncached options from this node. Damn.
@@ -483,9 +550,10 @@ class ChainCrawler(object):
                     #randomly select node from crawl_links
                     random_index = random.randrange(0,len(crawl_links))
 
-                    self.crawl_history.push({'href':self.current_uri, 'type':self.current_uri_type})
+                    self.crawl_history.push({'href':self.current_uri, 'type':self.current_uri_type, 'title':self.current_uri_title})
                     self.current_uri = crawl_links[random_index]['href']
                     self.current_uri_type = crawl_links[random_index]['type']
+                    self.current_uri_title = crawl_links[random_index]['title']
 
                 else:
                     log.error('CRAWL: NO CRAWLABLE LINKS DETECTED AT ENTRY_POINT!!!!')
@@ -496,14 +564,16 @@ class ChainCrawler(object):
                 prev = self.crawl_history.pop()
                 self.current_uri = prev['href']
                 self.current_uri_type = prev['type']
+                self.current_uri_title = prev['title']
 
             except: #no history left, not at entry point- jump to entry point
                 log.info('CRAWL: crawling back up history, but exhausted history.  Jump to entrypoint.')
                 self.current_uri= self.entry_point
                 self.current_uri_type = 'entry_point'
+                self.current_uri_title = 'entry_point'
 
         log.debug('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
-        log.info('CRAWL: crawling to %s', self.current_uri)
+        log.info('CRAWL: crawling to %s : %s', self.current_uri_title.upper(), self.current_uri)
         log.info('CRAWL: type: %s', self.current_uri_type)
         log.debug('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
 
@@ -512,13 +582,13 @@ class ChainCrawler(object):
 
 
     def find(self, namespace="", resource_type=None, \
-            plural_resource_type=None, resource_title=None):
+            plural_resource_type=None, resource_title=None, resource_extra=None):
         '''crawls, and when finds a match returns it immediately'''
 
         self.find_called = True
 
         uris= self.crawl(namespace=namespace, resource_type=resource_type, \
-            plural_resource_type=plural_resource_type, resource_title=resource_title)
+            plural_resource_type=plural_resource_type, resource_title=resource_title, resource_extra=resource_extra)
 
         if uris.size() >= 1:
             return uris.asList()[0]
@@ -534,17 +604,17 @@ if __name__=="__main__":
     #crawler = ChainCrawler('http://learnair.media.mit.edu:8000/devices/10')
     #crawler = ChainCrawler('http://learnair.media.mit.edu:8000/devices/?site_id=1')
     #crawler = ChainCrawler(found_set_persistence=2, crawl_delay=500)
-    #crawler = ChainCrawler()
+    crawler = ChainCrawler()
 
 
-    #crawler.crawl(namespace='http://learnair.media.mit.edu:8000/rels/', \
-    #        resource_type='site')
+    crawler.crawl(namespace='http://learnair.media.mit.edu:8000/rels/', \
+            resource_type='sensor', resource_extra={'sensor_type':'AlphasenseO3-A4'})
     #crawler.crawl(namespace='http://learnair.media.mit.edu:8000/rels/', \
     #        resource_title='a')
     #crawler.crawl(namespace='http://learnair.media.mit.edu:8000/rels/', \
     #        resource_type='Device', \
     #        resource_title='test004')
-    #crawler.crawl()
+    crawler.crawl()
 
 
     #######THREADING QUEUE EXAMPLES######
@@ -578,8 +648,9 @@ if __name__=="__main__":
     #        resource_title='a')
 
     #######FIND EXAMPLE######
-
+    '''
     crawler = ChainCrawler(found_set_persistence=2, crawl_delay=500)
     x=crawler.find(namespace='http://learnair.media.mit.edu:8000/rels/', \
             resource_title="Test Deployment #2",resource_type='deployment')
     print x
+    '''

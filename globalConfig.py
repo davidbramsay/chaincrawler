@@ -2,7 +2,7 @@ import sys
 import logging
 
 
-level = logging.WARN
+level = logging.INFO
 
 #set log output to screen and level to DEBUG level
 logging.basicConfig(stream=sys.stderr)
