@@ -9,7 +9,7 @@ a python implementation of a crawler and a breadth-first-search tool for ChainAP
 + [chainProcessor](https://github.com/dramsay9/chaindataprocessor) - *a scalable machine learning crawler framework, which automatically crawls and downloads data from a list of 'known' device types in ChainAPI, processes their data using a device-specific model (that automatically updates when new data is found), and uploads that processed data back into ChainAPI*
 + [an Air Quality Ontology Adaptation of Chain API](https://github.com/dramsay9/chain-api) ([original tool](https://github.com/ResEnv/chain-api) written by Spencer Russel et al) - *air quality data ontology written with ChainAPI- a semantic web, RESTful Sensor API*
 
-Additional resources include:
+**Additional resources include:**
 + [the thesis document](https://davidbramsay.com/public/RamsayMastersThesis.pdf) (full documentation/motivation, esp. Chap 6. ChainAPI for Air Quality)
 + [the repo for the thesis document](https://github.com/dramsay9/thesis)
 + [jupyter notebooks used in data pre-processing, machine learning, and plot generation](https://github.com/dramsay9/learnair-data-crunching)(with raw data)
@@ -17,7 +17,8 @@ Additional resources include:
 + [the original ChainAPI project](https://github.com/ResEnv/chain-api)
 
 
-##relevant thesis excerpt (with documentation and examples):
+
+##**relevant thesis excerpt (with documentation and examples):**
 
 ![Thesis Excerpt](/readme.jpg)
 
