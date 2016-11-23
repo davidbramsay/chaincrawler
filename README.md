@@ -1,20 +1,20 @@
 # chaincrawler
 a python implementation of a crawler for ChainAPI (HAL/JSON implementation).
 
-##**chaincrawler** is part of [https://www.davidbramsay.com/learnair](LearnAir, a master's thesis).
+##**chaincrawler** is part of [LearnAir, a master's thesis](https://www.davidbramsay.com/learnair).
 
 **code written for LearnAir includes:**
-+ [https://github.com/dramsay9/chaincrawler](chainCrawler and chainSearcher) - *a web crawler and a breadth-first-search tool for the semantic web data achitecture ChainAPI*
-+ [https://github.com/dramsay9/chainlearnairdata](chainTraverser and chainDataPush) - *a stateful web spider to traverse, upload, modify, and interact with ChainAPI nodes and data, including pushing data from Excel files*
-+ [https://github.com/dramsay9/chaindataprocessor](chainProcessor) - *a scalable machine learning crawler framework, which automatically crawls and downloads data from a list of 'known' device types in ChainAPI, processes their data using a device-specific model (that automatically updates when new data is found), and uploads that processed data back into ChainAPI*
-+ [https://github.com/dramsay9/chain-api](an Air Quality Ontology Adaptation of Chain API) ([https://github.com/ResEnv/chain-api](original tool) written by Spencer Russel et al) - *air quality data ontology written with ChainAPI- a semantic web, RESTful Sensor API*
++ [chainCrawler and chainSearcher](https://github.com/dramsay9/chaincrawler) - *a web crawler and a breadth-first-search tool for the semantic web data achitecture ChainAPI*
++ [chainTraverser and chainDataPush](https://github.com/dramsay9/chainlearnairdata) - *a stateful web spider to traverse, upload, modify, and interact with ChainAPI nodes and data, including pushing data from Excel files*
++ [chainProcessor](https://github.com/dramsay9/chaindataprocessor) - *a scalable machine learning crawler framework, which automatically crawls and downloads data from a list of 'known' device types in ChainAPI, processes their data using a device-specific model (that automatically updates when new data is found), and uploads that processed data back into ChainAPI*
++ [an Air Quality Ontology Adaptation of Chain API](https://github.com/dramsay9/chain-api) ([original tool](https://github.com/ResEnv/chain-api) written by Spencer Russel et al) - *air quality data ontology written with ChainAPI- a semantic web, RESTful Sensor API*
 
 Additional resources include:
-+ [https://davidbramsay.com/public/RamsayMastersThesis.pdf](the thesis document) (see for full documentation and motivation of the code, especially Chapter 6. ChainAPI for Air Quality)
-+ [https://github.com/dramsay9/thesis](the repo for the thesis document)
-+ [https://github.com/dramsay9/learnair-data-crunching](a repo of jupyter notebooks used in data pre-processing, machine learning, and plot generation (with raw data))
-+ [https://vimeo.com/188586371](a quick video introducing the learnAir concept)
-+ [https://github.com/ResEnv/chain-api](the original ChainAPI project)
++ [the thesis document](https://davidbramsay.com/public/RamsayMastersThesis.pdf) (see for full documentation and motivation of the code, especially Chapter 6. ChainAPI for Air Quality)
++ [the repo for the thesis document](https://github.com/dramsay9/thesis)
++ [a repo of jupyter notebooks used in data pre-processing, machine learning, and plot generation](https://github.com/dramsay9/learnair-data-crunching)(with raw data)
++ [a quick video introducing the learnAir concept](https://vimeo.com/188586371)
++ [the original ChainAPI project](https://github.com/ResEnv/chain-api)
 
 
 ##relevant thesis excerpt:
