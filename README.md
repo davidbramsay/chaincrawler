@@ -1,7 +1,23 @@
 # chaincrawler
-a python implementation of a crawler for the Chain-API (HAL/JSON implementation)
+a python implementation of a crawler for ChainAPI (HAL/JSON implementation).
 
-chaincrawler is part of LearnAir, a master's thesis.
+##**chaincrawler** is part of [https://www.davidbramsay.com/learnair](LearnAir, a master's thesis).
+
+**code written for LearnAir includes:**
++ [https://github.com/dramsay9/chaincrawler](chainCrawler and chainSearcher) - *a web crawler and a breadth-first-search tool for the semantic web data achitecture ChainAPI*
++ [https://github.com/dramsay9/chainlearnairdata](chainTraverser and chainDataPush) - *a stateful web spider to traverse, upload, modify, and interact with ChainAPI nodes and data, including pushing data from Excel files*
++ [https://github.com/dramsay9/chaindataprocessor](chainProcessor) - *a scalable machine learning crawler framework, which automatically crawls and downloads data from a list of 'known' device types in ChainAPI, processes their data using a device-specific model (that automatically updates when new data is found), and uploads that processed data back into ChainAPI*
++ [https://github.com/dramsay9/chain-api](an Air Quality Ontology Adaptation of Chain API) ([https://github.com/ResEnv/chain-api](original tool) written by Spencer Russel et al) - *air quality data ontology written with ChainAPI- a semantic web, RESTful Sensor API*
+
+Additional resources include:
++ [https://davidbramsay.com/public/RamsayMastersThesis.pdf](the thesis document) (see for full documentation and motivation of the code, especially Chapter 6. ChainAPI for Air Quality)
++ [https://github.com/dramsay9/thesis](the repo for the thesis document)
++ [https://github.com/dramsay9/learnair-data-crunching](a repo of jupyter notebooks used in data pre-processing, machine learning, and plot generation (with raw data))
++ [https://vimeo.com/188586371](a quick video introducing the learnAir concept)
++ [https://github.com/ResEnv/chain-api](the original ChainAPI project)
+
+
+##relevant thesis excerpt:
 
 Now that we’ve created an ontology for air quality, it’s important to have the tools to interact with the data as new devices are added. ChainCrawler is a tool for crawling through ChainAPI resource links and discovering new resources. It works like a traditional web- crawler.
 ChainCrawler is highly optimized for speed and scale, using Google’s CityHash to track the most recently visited resources so the crawler doesn’t loop or backtrack. It has the additional feature of tracking hash collisions as required, and can accept any power of 2 size hash table.
