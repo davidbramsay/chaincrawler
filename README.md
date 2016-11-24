@@ -1,7 +1,7 @@
 # chaincrawler and chainsearcher
 a python implementation of a crawler and a breadth-first-search tool for ChainAPI (HAL/JSON implementation).
 
-**chaincrawler** and **chainsearcher** are part of [LearnAir, a master's thesis](https://www.davidbramsay.com/learnair).
+chaincrawler and chainsearcher are part of [LearnAir, a master's thesis](https://www.davidbramsay.com/learnair).
 
 ## related work
 **code written for LearnAir includes:**
@@ -19,7 +19,7 @@ a python implementation of a crawler and a breadth-first-search tool for ChainAP
 
 
 
-##**relevant thesis excerpt (with documentation and examples):**
+##**documentation and examples**
 
 ![Thesis Excerpt](/readme.jpg)
 
