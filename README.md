@@ -1,8 +1,9 @@
 # chaincrawler and chainsearcher
 a python implementation of a crawler and a breadth-first-search tool for ChainAPI (HAL/JSON implementation).
 
-##**chaincrawler** and **chainsearcher** are part of [LearnAir, a master's thesis](https://www.davidbramsay.com/learnair).
+**chaincrawler** and **chainsearcher** are part of [LearnAir, a master's thesis](https://www.davidbramsay.com/learnair).
 
+## related work
 **code written for LearnAir includes:**
 + [chainCrawler and chainSearcher](https://github.com/dramsay9/chaincrawler) - *a web crawler and a breadth-first-search tool for the semantic web data achitecture ChainAPI*
 + [chainTraverser and chainDataPush](https://github.com/dramsay9/chainlearnairdata) - *a stateful web spider to traverse, upload, modify, and interact with ChainAPI nodes and data, including pushing data from Excel files*
