@@ -3,6 +3,12 @@ a python implementation of a crawler and a breadth-first-search tool for ChainAP
 
 chaincrawler and chainsearcher are part of [LearnAir, a master's thesis](https://www.davidbramsay.com/learnair).
 
+
+##**documentation and examples**
+
+![Thesis Excerpt](/readme.jpg)
+
+
 ## related work
 **code written for LearnAir includes:**
 + [chainCrawler and chainSearcher](https://github.com/dramsay9/chaincrawler) - *a web crawler and a breadth-first-search tool for the semantic web data achitecture ChainAPI*
@@ -16,10 +22,3 @@ chaincrawler and chainsearcher are part of [LearnAir, a master's thesis](https:/
 + [jupyter notebooks used in data pre-processing, machine learning, and plot generation](https://github.com/dramsay9/learnair-data-crunching)(with raw data)
 + [a quick video introducing the learnAir concept](https://vimeo.com/188586371)
 + [the original ChainAPI project](https://github.com/ResEnv/chain-api)
-
-
-
-##**documentation and examples**
-
-![Thesis Excerpt](/readme.jpg)
-
