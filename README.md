@@ -22,3 +22,6 @@ chaincrawler and chainsearcher are part of [LearnAir, a master's thesis](https:/
 + [jupyter notebooks used in data pre-processing, machine learning, and plot generation](https://github.com/dramsay9/learnair-data-crunching)(with raw data)
 + [a quick video introducing the learnAir concept](https://vimeo.com/188586371)
 + [the original ChainAPI project](https://github.com/ResEnv/chain-api)
+
+### Contact
+dramsay@mit.edu
